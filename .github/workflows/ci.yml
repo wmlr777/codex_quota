@@ -1,0 +1,27 @@
+name: Build and test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build universal application
+        run: ./scripts/package.sh
+      - name: Test parsing and transport
+        run: ./scripts/test.sh
+      - name: Upload application
+        uses: actions/upload-artifact@v4
+        with:
+          name: Codex-Quota-macOS
+          path: |
+            dist/Codex-Quota-macOS.zip
+            dist/SHA256SUMS.txt
