@@ -5,7 +5,7 @@
 A small native macOS menu bar app that shows your **remaining Codex subscription quota**.
 
 ```text
-◉ 72% · 周 85%
+◉ 72% · wk 85%
 ```
 
 Click the menu bar item to see usage bars, reset countdowns, exact reset times, and the last successful update. The app refreshes every 60 seconds and after wake, with a manual refresh button.
