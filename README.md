@@ -27,10 +27,10 @@ To start at login, add the app under System Settings → General → Login Items
 
 ## Controls
 
-- **刷新** — refresh now.
-- **Gear → 打开 Codex** — open the installed Codex/ChatGPT app.
-- **Gear → 选择 Codex 可执行文件…** — select your `codex` executable if auto-detection fails.
-- **Gear → 退出** — quit the app and remove its menu bar item.
+- **Refresh** — refresh now.
+- **Gear → Open Codex** — open the installed Codex/ChatGPT app.
+- **Gear → Choose Codex executable…** — select your `codex` executable if auto-detection fails.
+- **Gear → Quit** — quit the app and remove its menu bar item.
 
 The secondary menu bar label is `周` in Chinese or `wk` in English. The popup fits its content to avoid excess blank space, caps its height to the available screen area, and scrolls only when needed. Window labels use the server-reported duration; the common windows are five hours and one week. Missing information is shown as `—`. Failed reads keep the last successful snapshot with a warning; reaching the reset time does not locally assume that quota is back to 100%.
 
@@ -79,7 +79,7 @@ The tests require Python 3 for a local mock server. They do not need a Codex log
 If a read fails:
 
 - Confirm that the selected Codex is signed in with a ChatGPT account, rather than only an API key.
-- Check the network connection, then use **刷新**.
+- Check the network connection, then use **Refresh**.
 - Select the correct executable through the gear menu if Codex is installed somewhere else.
 - Reads time out after 30 seconds; the app will try again at the next refresh.
 
