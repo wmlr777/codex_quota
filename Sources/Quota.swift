@@ -6,11 +6,11 @@ struct QuotaWindow: Decodable {
     let resetsAt: Double?
     var remaining: Int? { usedPercent.map { Int(max(0, min(100, 100 - $0)).rounded()) } }
     var label: String {
-        guard let minutes = windowDurationMins else { return "额度窗口" }
-        if minutes % 10080 == 0 { return "\(minutes / 10080) 周" }
-        if minutes % 1440 == 0 { return "\(minutes / 1440) 天" }
-        if minutes % 60 == 0 { return "\(minutes / 60) 小时" }
-        return "\(minutes) 分钟"
+        guard let minutes = windowDurationMins else { return L10n.text("额度窗口", "Quota window") }
+        if minutes % 10080 == 0 { return L10n.text("\(minutes / 10080) 周", "\(minutes / 10080) wk") }
+        if minutes % 1440 == 0 { return L10n.text("\(minutes / 1440) 天", "\(minutes / 1440) d") }
+        if minutes % 60 == 0 { return L10n.text("\(minutes / 60) 小时", "\(minutes / 60) hr") }
+        return L10n.text("\(minutes) 分钟", "\(minutes) min")
     }
 }
 struct QuotaBucket: Decodable {
@@ -55,7 +55,7 @@ final class QuotaClient {
     func fetch(_ callback: @escaping (Result<QuotaBucket, Error>) -> Void) {
         guard completion == nil else { return }
         guard let executable = Self.executable() else {
-            callback(.failure(QuotaError.message("找不到 Codex，请安装 Codex 或选择可执行文件。"))); return
+            callback(.failure(QuotaError.message(L10n.text("找不到 Codex，请安装 Codex 或选择可执行文件。", "Codex was not found. Install Codex or select its executable.")))); return
         }
         completion = callback
         generation = UUID()
@@ -76,15 +76,15 @@ final class QuotaClient {
         p.terminationHandler = { [weak self] _ in
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 guard let self, self.generation == token, self.completion != nil else { return }
-                self.finish(.failure(QuotaError.message("Codex 连接已退出，请检查登录状态后重试。")))
+                self.finish(.failure(QuotaError.message(L10n.text("Codex 连接已退出，请检查登录状态后重试。", "The Codex connection closed. Check your sign-in and try again."))))
             }
         }
         do {
             try p.run()
-            try send(["id": 1, "method": "initialize", "params": ["clientInfo": ["name": "codex_quota", "title": "Codex Quota", "version": "1.0.0"]]])
+            try send(["id": 1, "method": "initialize", "params": ["clientInfo": ["name": "codex_quota", "title": "Codex Quota", "version": "1.0.1"]]])
             let item = DispatchWorkItem { [weak self] in
                 guard let self, self.generation == token else { return }
-                self.finish(.failure(QuotaError.message("读取超时，请检查网络和 Codex 登录状态。")))
+                self.finish(.failure(QuotaError.message(L10n.text("读取超时，请检查网络和 Codex 登录状态。", "The request timed out. Check your network and Codex sign-in."))))
             }
             timeout = item
             DispatchQueue.main.asyncAfter(deadline: .now() + 30, execute: item)
@@ -96,13 +96,13 @@ final class QuotaClient {
     }
     private func receive(_ data: Data) {
         buffer.append(data)
-        guard buffer.count < 4_000_000 else { finish(.failure(QuotaError.message("Codex 返回的数据过大。"))); return }
+        guard buffer.count < 4_000_000 else { finish(.failure(QuotaError.message(L10n.text("Codex 返回的数据过大。", "The Codex response was too large.")))); return }
         while let end = buffer.firstIndex(of: 10) {
             let line = buffer.prefix(upTo: end); buffer.removeSubrange(...end)
             guard let object = try? JSONSerialization.jsonObject(with: line) as? [String: Any],
                   let id = object["id"] as? Int else { continue }
             if object["error"] != nil {
-                finish(.failure(QuotaError.message("无法读取额度，请在 Codex 中使用 ChatGPT 账号登录后重试。"))); return
+                finish(.failure(QuotaError.message(L10n.text("无法读取额度，请在 Codex 中使用 ChatGPT 账号登录后重试。", "Cannot read quota. Sign in to Codex with your ChatGPT account and try again.")))); return
             }
             do {
                 if id == 1 {
@@ -110,7 +110,7 @@ final class QuotaClient {
                     try send(["id": 2, "method": "account/rateLimits/read"])
                 } else if id == 2, let result = object["result"] {
                     let decoded = try JSONDecoder().decode(QuotaResponse.self, from: JSONSerialization.data(withJSONObject: result))
-                    guard let bucket = decoded.codex else { throw QuotaError.message("当前账号未返回 Codex 额度。") }
+                    guard let bucket = decoded.codex else { throw QuotaError.message(L10n.text("当前账号未返回 Codex 额度。", "No Codex quota was returned for this account.")) }
                     finish(.success(bucket)); return
                 }
             } catch { finish(.failure(error)); return }

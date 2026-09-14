@@ -2,7 +2,7 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 mkdir -p "$ROOT/work/swift-cache"
-swiftc -swift-version 5 -module-cache-path "$ROOT/work/swift-cache" "$ROOT/Sources/Quota.swift" "$ROOT/Tests/main.swift" -o "$ROOT/work/quota-tests"
+swiftc -swift-version 5 -module-cache-path "$ROOT/work/swift-cache" "$ROOT/Sources/Localization.swift" "$ROOT/Sources/Quota.swift" "$ROOT/Tests/main.swift" -o "$ROOT/work/quota-tests"
 "$ROOT/work/quota-tests"
 BIN="$ROOT/dist/Codex Quota.app/Contents/MacOS/CodexQuota"
 RESULT=$(CODEX_BIN="$ROOT/Tests/mock-codex.py" "$BIN" --probe)

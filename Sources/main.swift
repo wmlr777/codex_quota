@@ -6,6 +6,7 @@ final class QuotaStore: ObservableObject {
     @Published var updated: Date?
     @Published var error: String?
     @Published var loading = false
+    @Published var panelHeight: CGFloat = 500
     var changed: (() -> Void)?
     let client = QuotaClient()
     func refresh() {
@@ -26,7 +27,7 @@ final class QuotaStore: ObservableObject {
         guard let quota else { return loading ? "◉ …" : "◉ —" }
         let primary = quota.primary?.remaining.map { "\($0)%" } ?? "—"
         let secondary = quota.secondary?.remaining.map { "\($0)%" } ?? "—"
-        let label = quota.secondary?.windowDurationMins == 10080 ? "周" : (quota.secondary?.label ?? "长期")
+        let label = quota.secondary?.windowDurationMins == 10080 ? L10n.text("周", "wk") : (quota.secondary?.label ?? L10n.text("长期", "long"))
         return "\(stale ? "⚠︎" : "◉") \(primary) · \(label) \(secondary)"
     }
 }
@@ -41,7 +42,7 @@ struct WindowCard: View {
                 Text(window?.label ?? fallback).font(.system(size: 13, weight: .medium))
                 Spacer()
                 Text(window?.remaining.map { "\($0)%" } ?? "—").font(.system(size: 23, weight: .semibold, design: .rounded)).monospacedDigit()
-                Text("剩余").font(.caption).foregroundStyle(.secondary)
+                Text(L10n.text("剩余", "left")).font(.caption).foregroundStyle(.secondary)
             }
             ProgressView(value: Double(window?.remaining ?? 0), total: 100).tint(tint)
             if let reset = window?.resetsAt {
@@ -49,12 +50,12 @@ struct WindowCard: View {
                     let seconds = max(0, Int(reset - context.date.timeIntervalSince1970))
                     let hours = seconds / 3600
                     let minutes = seconds % 3600 / 60
-                    Text(seconds == 0 ? "已到重置时间，等待服务更新" : "\(hours > 0 ? "\(hours) 小时 " : "")\(minutes) 分钟后重置")
+                    Text(seconds == 0 ? L10n.text("已到重置时间，等待服务更新", "Reset due; waiting for server update") : L10n.text("\(hours) 小时 \(minutes) 分钟后重置", "Resets in \(hours)h \(minutes)m"))
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 Text(Date(timeIntervalSince1970: reset), format: .dateTime.month().day().hour().minute())
                     .font(.caption2).foregroundStyle(.tertiary)
-            } else { Text("暂无重置信息").font(.caption).foregroundStyle(.secondary) }
+            } else { Text(L10n.text("暂无重置信息", "Reset time unavailable")).font(.caption).foregroundStyle(.secondary) }
         }.padding(14).background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 12))
     }
 }
@@ -62,44 +63,46 @@ struct QuotaPanel: View {
     @ObservedObject var store: QuotaStore
     let chooseBinary: () -> Void
     var body: some View {
+        ScrollView(.vertical) {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
                 Image(systemName: "chart.bar.xaxis").font(.title3).foregroundStyle(Color.accentColor)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Codex Quota").font(.headline)
-                    Text("订阅额度 · \(store.quota?.planType?.capitalized ?? "Codex")").font(.caption).foregroundStyle(.secondary)
+                    Text("\(L10n.text("订阅额度", "Subscription quota")) · \(store.quota?.planType?.capitalized ?? "Codex")").font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer()
                 if store.loading { ProgressView().controlSize(.small) }
             }
-            WindowCard(window: store.quota?.primary, fallback: "短期额度")
-            WindowCard(window: store.quota?.secondary, fallback: "每周额度")
+            WindowCard(window: store.quota?.primary, fallback: L10n.text("短期额度", "Short-term quota"))
+            WindowCard(window: store.quota?.secondary, fallback: L10n.text("每周额度", "Weekly quota"))
             if let error = store.error {
                 Label(error, systemImage: "exclamationmark.triangle.fill").font(.caption).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true)
             }
             HStack {
                 if let updated = store.updated {
-                    Text("\(store.stale ? "上次成功" : "更新于") \(updated.formatted(date: .omitted, time: .standard))")
-                } else { Text("等待读取额度") }
+                    Text("\(store.stale ? L10n.text("上次成功", "Last success") : L10n.text("更新于", "Updated")) \(updated.formatted(date: .omitted, time: .standard))")
+                } else { Text(L10n.text("等待读取额度", "Waiting for quota")) }
                 Spacer()
-                Text("每 60 秒刷新")
+                Text(L10n.text("每 60 秒刷新", "Refreshes every 60s"))
             }.font(.system(size: 10)).foregroundStyle(.secondary)
             Divider()
             HStack {
-                Button("刷新", systemImage: "arrow.clockwise") { store.refresh() }.disabled(store.loading)
+                Button(L10n.text("刷新", "Refresh"), systemImage: "arrow.clockwise") { store.refresh() }.disabled(store.loading)
                 Spacer()
                 Menu {
-                    Button("打开 Codex") {
+                    Button(L10n.text("打开 Codex", "Open Codex")) {
                         for path in ["/Applications/Codex.app", "/Applications/ChatGPT.app"] where FileManager.default.fileExists(atPath: path) {
                             NSWorkspace.shared.open(URL(fileURLWithPath: path)); break
                         }
                     }
-                    Button("选择 Codex 可执行文件…", action: chooseBinary)
+                    Button(L10n.text("选择 Codex 可执行文件…", "Choose Codex executable…"), action: chooseBinary)
                     Divider()
-                    Button("退出") { NSApp.terminate(nil) }
+                    Button(L10n.text("退出", "Quit")) { NSApp.terminate(nil) }
                 } label: { Image(systemName: "gearshape") }.menuStyle(.borderlessButton).frame(width: 24)
             }.controlSize(.small)
-        }.padding(18).frame(width: 330)
+        }.padding(18).frame(maxWidth: .infinity, alignment: .topLeading)
+        }.frame(width: 350, height: store.panelHeight, alignment: .top)
     }
 }
 final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -114,7 +117,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         item.button?.font = .monospacedDigitSystemFont(ofSize: 12, weight: .medium)
         item.button?.target = self; item.button?.action = #selector(toggle)
         popover.behavior = .transient
-        popover.contentViewController = NSHostingController(rootView: QuotaPanel(store: store, chooseBinary: { [weak self] in self?.chooseBinary() }))
+        let host = NSHostingController(rootView: QuotaPanel(store: store, chooseBinary: { [weak self] in self?.chooseBinary() }))
+        // Keep a stable viewport as async quota/error content changes. SwiftUI's
+        // intrinsic height must not resize or move the menu-bar popover offscreen.
+        host.sizingOptions = []
+        popover.contentViewController = host
+        popover.contentSize = NSSize(width: 350, height: store.panelHeight)
         store.changed = { [weak self] in self?.updateTitle() }
         updateTitle(); store.refresh()
         let timer = Timer(timeInterval: 60, repeats: true) { [weak self] _ in self?.store.refresh() }
@@ -123,11 +131,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
     func updateTitle() {
         item.button?.title = store.title
-        item.button?.toolTip = "Codex 剩余额度\(store.stale ? "（上次读取失败）" : "")"
+        item.button?.toolTip = L10n.text("Codex 剩余额度", "Codex remaining quota") + (store.stale ? L10n.text("（上次读取失败）", " (last read failed)") : "")
     }
     @objc func toggle() {
         if popover.isShown { popover.performClose(nil) }
         else if let button = item.button {
+            let availableHeight = (button.window?.screen?.visibleFrame.height ?? 600) - 40
+            store.panelHeight = min(500, max(100, availableHeight))
+            popover.contentSize = NSSize(width: 350, height: store.panelHeight)
             NSApp.activate(ignoringOtherApps: true)
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
             if store.updated == nil || Date().timeIntervalSince(store.updated!) > 60 { store.refresh() }
@@ -135,7 +146,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
     func chooseBinary() {
         popover.performClose(nil)
-        let panel = NSOpenPanel(); panel.title = "选择 codex 可执行文件"; panel.canChooseDirectories = false
+        let panel = NSOpenPanel(); panel.title = L10n.text("选择 codex 可执行文件", "Choose the codex executable"); panel.canChooseDirectories = false
         if panel.runModal() == .OK, let url = panel.url, FileManager.default.isExecutableFile(atPath: url.path) {
             UserDefaults.standard.set(url.path, forKey: "codexPath"); store.refresh()
         }

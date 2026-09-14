@@ -10,7 +10,7 @@ A small native macOS menu bar app that shows your **remaining Codex subscription
 
 Click the menu bar item to see usage bars, reset countdowns, exact reset times, and the last successful update. The app refreshes every 60 seconds and after wake, with a manual refresh button.
 
-> This is an independent community app, not an official OpenAI product. It adds its own menu bar item; it does not modify the official Codex menu. The current app interface is in Chinese; documentation is available in both languages.
+> This is an independent community app, not an official OpenAI product. It adds its own menu bar item; it does not modify the official Codex menu. The interface follows the macOS preferred language (Chinese or English; English fallback). Restart the app after changing the system or per-app language.
 
 ## Download and run
 
@@ -32,7 +32,7 @@ To start at login, add the app under System Settings → General → Login Items
 - **Gear → 选择 Codex 可执行文件…** — select your `codex` executable if auto-detection fails.
 - **Gear → 退出** — quit the app and remove its menu bar item.
 
-The secondary menu bar label `周` means “week.” Window labels use the server-reported duration; the common windows are five hours and one week. Missing information is shown as `—`. Failed reads keep the last successful snapshot with a warning; reaching the reset time does not locally assume that quota is back to 100%.
+The secondary menu bar label is `周` in Chinese or `wk` in English. The popup has a screen-height-limited, scrollable viewport so updated content stays inside the panel. Window labels use the server-reported duration; the common windows are five hours and one week. Missing information is shown as `—`. Failed reads keep the last successful snapshot with a warning; reaching the reset time does not locally assume that quota is back to 100%.
 
 ## Which account does it use?
 
