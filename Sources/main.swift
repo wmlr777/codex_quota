@@ -6,7 +6,7 @@ final class QuotaStore: ObservableObject {
     @Published var updated: Date?
     @Published var error: String?
     @Published var loading = false
-    @Published var panelHeight: CGFloat = 500
+    @Published var panelHeight: CGFloat = 420
     var changed: (() -> Void)?
     let client = QuotaClient()
     func refresh() {
@@ -59,9 +59,14 @@ struct WindowCard: View {
         }.padding(14).background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 12))
     }
 }
+private struct PanelHeightKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = max(value, nextValue()) }
+}
 struct QuotaPanel: View {
     @ObservedObject var store: QuotaStore
     let chooseBinary: () -> Void
+    let contentHeightChanged: (CGFloat) -> Void
     var body: some View {
         ScrollView(.vertical) {
         VStack(alignment: .leading, spacing: 14) {
@@ -102,13 +107,19 @@ struct QuotaPanel: View {
                 } label: { Image(systemName: "gearshape") }.menuStyle(.borderlessButton).frame(width: 24)
             }.controlSize(.small)
         }.padding(18).frame(maxWidth: .infinity, alignment: .topLeading)
+            .fixedSize(horizontal: false, vertical: true)
+            .background(GeometryReader { geometry in
+                Color.clear.preference(key: PanelHeightKey.self, value: geometry.size.height)
+            })
         }.frame(width: 350, height: store.panelHeight, alignment: .top)
+            .onPreferenceChange(PanelHeightKey.self, perform: contentHeightChanged)
     }
 }
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let store = QuotaStore()
     var item: NSStatusItem!
     let popover = NSPopover()
+    var measuredContentHeight: CGFloat = 420
     var timer: Timer?
     var wakeObserver: NSObjectProtocol?
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -117,9 +128,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         item.button?.font = .monospacedDigitSystemFont(ofSize: 12, weight: .medium)
         item.button?.target = self; item.button?.action = #selector(toggle)
         popover.behavior = .transient
-        let host = NSHostingController(rootView: QuotaPanel(store: store, chooseBinary: { [weak self] in self?.chooseBinary() }))
-        // Keep a stable viewport as async quota/error content changes. SwiftUI's
-        // intrinsic height must not resize or move the menu-bar popover offscreen.
+        let host = NSHostingController(rootView: QuotaPanel(
+            store: store,
+            chooseBinary: { [weak self] in self?.chooseBinary() },
+            contentHeightChanged: { [weak self] height in
+                guard height.isFinite, height > 0 else { return }
+                DispatchQueue.main.async {
+                    guard let self else { return }
+                    self.measuredContentHeight = ceil(height)
+                    self.resizePopover()
+                }
+            }
+        ))
+        // Size explicitly from the natural content height, capped to the screen.
+        // Disable automatic hosting sizing to avoid competing resize mechanisms.
         host.sizingOptions = []
         popover.contentViewController = host
         popover.contentSize = NSSize(width: 350, height: store.panelHeight)
@@ -133,12 +155,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         item.button?.title = store.title
         item.button?.toolTip = L10n.text("Codex 剩余额度", "Codex remaining quota") + (store.stale ? L10n.text("（上次读取失败）", " (last read failed)") : "")
     }
+    func resizePopover() {
+        let availableHeight = max(100, (item.button?.window?.screen?.visibleFrame.height ?? 600) - 40)
+        let height = min(measuredContentHeight, availableHeight)
+        guard abs(store.panelHeight - height) > 0.5 else { return }
+        store.panelHeight = height
+        popover.contentSize = NSSize(width: 350, height: height)
+    }
     @objc func toggle() {
         if popover.isShown { popover.performClose(nil) }
         else if let button = item.button {
-            let availableHeight = (button.window?.screen?.visibleFrame.height ?? 600) - 40
-            store.panelHeight = min(500, max(100, availableHeight))
-            popover.contentSize = NSSize(width: 350, height: store.panelHeight)
+            resizePopover()
             NSApp.activate(ignoringOtherApps: true)
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
             if store.updated == nil || Date().timeIntervalSince(store.updated!) > 60 { store.refresh() }

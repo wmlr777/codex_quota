@@ -81,7 +81,7 @@ final class QuotaClient {
         }
         do {
             try p.run()
-            try send(["id": 1, "method": "initialize", "params": ["clientInfo": ["name": "codex_quota", "title": "Codex Quota", "version": "1.0.1"]]])
+            try send(["id": 1, "method": "initialize", "params": ["clientInfo": ["name": "codex_quota", "title": "Codex Quota", "version": "1.0.2"]]])
             let item = DispatchWorkItem { [weak self] in
                 guard let self, self.generation == token else { return }
                 self.finish(.failure(QuotaError.message(L10n.text("读取超时，请检查网络和 Codex 登录状态。", "The request timed out. Check your network and Codex sign-in."))))

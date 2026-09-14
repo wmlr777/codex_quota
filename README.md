@@ -32,7 +32,7 @@ To start at login, add the app under System Settings → General → Login Items
 - **Gear → 选择 Codex 可执行文件…** — select your `codex` executable if auto-detection fails.
 - **Gear → 退出** — quit the app and remove its menu bar item.
 
-The secondary menu bar label is `周` in Chinese or `wk` in English. The popup has a screen-height-limited, scrollable viewport so updated content stays inside the panel. Window labels use the server-reported duration; the common windows are five hours and one week. Missing information is shown as `—`. Failed reads keep the last successful snapshot with a warning; reaching the reset time does not locally assume that quota is back to 100%.
+The secondary menu bar label is `周` in Chinese or `wk` in English. The popup fits its content to avoid excess blank space, caps its height to the available screen area, and scrolls only when needed. Window labels use the server-reported duration; the common windows are five hours and one week. Missing information is shown as `—`. Failed reads keep the last successful snapshot with a warning; reaching the reset time does not locally assume that quota is back to 100%.
 
 ## Which account does it use?
 
