@@ -20,3 +20,8 @@ check(!L10n.usesChinese(["en-GB", "zh-Hans"]), "Respect English preference")
 check(!L10n.usesChinese(["fr-FR"]), "Unsupported language falls back to English")
 check(L10n.usesChinese(["ja-JP", "zh-Hant-TW", "en"]), "Next supported language")
 print("Language preference checks passed")
+
+check(!QuotaClient.isExecutableFile(FileManager.default.temporaryDirectory.path), "Reject searchable directories as executables")
+check(QuotaClient.isExecutableFile("/bin/sh"), "Accept executable files")
+check(!QuotaClient.isExecutableFile("/nonexistent/codex"), "Reject missing executable")
+print("Executable path validation passed")

@@ -42,14 +42,24 @@ final class QuotaClient {
     private var timeout: DispatchWorkItem?
     private var generation = UUID()
 
+    static func isExecutableFile(_ path: String) -> Bool {
+        var isDirectory: ObjCBool = false
+        return FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory)
+            && !isDirectory.boolValue && FileManager.default.isExecutableFile(atPath: path)
+    }
+
     static func executable() -> String? {
         let defaults = UserDefaults.standard.string(forKey: "codexPath")
         let candidates = [ProcessInfo.processInfo.environment["CODEX_BIN"], defaults,
+            "/Applications/Codex.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex",
+            "/Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex",
+            "/Applications/Codex.app/Contents/Resources/codex-cli/bin/codex",
+            "/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex",
             "/Applications/Codex.app/Contents/Resources/codex",
             "/Applications/ChatGPT.app/Contents/Resources/codex",
             "/opt/homebrew/bin/codex", "/usr/local/bin/codex"]
         let pathCandidates = (ProcessInfo.processInfo.environment["PATH"] ?? "").split(separator: ":").map { "\($0)/codex" }
-        return (candidates.compactMap { $0 } + pathCandidates).first { FileManager.default.isExecutableFile(atPath: $0) }
+        return (candidates.compactMap { $0 } + pathCandidates).first { isExecutableFile($0) }
     }
 
     func fetch(_ callback: @escaping (Result<QuotaBucket, Error>) -> Void) {

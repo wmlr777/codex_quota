@@ -174,8 +174,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func chooseBinary() {
         popover.performClose(nil)
         let panel = NSOpenPanel(); panel.title = L10n.text("选择 codex 可执行文件", "Choose the codex executable"); panel.canChooseDirectories = false
-        if panel.runModal() == .OK, let url = panel.url, FileManager.default.isExecutableFile(atPath: url.path) {
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        if QuotaClient.isExecutableFile(url.path) {
             UserDefaults.standard.set(url.path, forKey: "codexPath"); store.refresh()
+        } else {
+            let alert = NSAlert()
+            alert.messageText = L10n.text("请选择可执行文件", "Select an executable file")
+            alert.informativeText = L10n.text("请选择名为 codex 的程序文件，而不是 .app 应用或文件夹。", "Choose the codex program file, not an .app bundle or folder.")
+            alert.runModal()
         }
     }
     func applicationWillTerminate(_ notification: Notification) {
