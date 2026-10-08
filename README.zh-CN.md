@@ -12,6 +12,12 @@
 
 > 这是独立的社区应用，并非 OpenAI 官方产品。它新增自己的菜单栏按钮，不修改官方 Codex 菜单。界面跟随 macOS 首选语言，支持中文和英文，其他语言回退到英文。更改系统或单独为本应用设置语言后，请重启应用。
 
+## 使用截图
+
+![Codex Quota 菜单栏与额度面板运行截图](docs/images/codex-quota-screenshot.png)
+
+截图展示中文界面；应用跟随 macOS 首选语言，支持中文和英文。
+
 ## 下载使用
 
 1. 安装 Codex，并使用**你自己的 ChatGPT 账号**登录。支持查找 `/Applications/Codex.app`、`/Applications/ChatGPT.app` 内置的 Codex，或单独安装的 Codex CLI。

@@ -12,6 +12,12 @@ Click the menu bar item to see usage bars, reset countdowns, exact reset times, 
 
 > This is an independent community app, not an official OpenAI product. It adds its own menu bar item; it does not modify the official Codex menu. The interface follows the macOS preferred language (Chinese or English; English fallback). Restart the app after changing the system or per-app language.
 
+## Screenshot
+
+![Codex Quota menu bar and quota panel in use](docs/images/codex-quota-screenshot.png)
+
+Chinese interface shown. The app follows your macOS language preference and also supports English.
+
 ## Download and run
 
 1. Install Codex and sign in using your **own ChatGPT account**. The app can find Codex bundled in `/Applications/Codex.app` or `/Applications/ChatGPT.app`, or a Codex CLI installation.
