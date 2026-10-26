@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import WidgetKit
 
 final class QuotaStore: ObservableObject {
     @Published var quota: QuotaBucket?
@@ -9,9 +10,43 @@ final class QuotaStore: ObservableObject {
     @Published var panelHeight: CGFloat = 420
     var changed: (() -> Void)?
     let client = QuotaClient()
+    private var refreshStartedAt: Date?
+    private var refreshFinishedAt: Date?
+    private var refreshWaiters: [CheckedContinuation<Void, Never>] = []
+
+    @MainActor
+    func refreshAndWait() async {
+        await withCheckedContinuation { continuation in
+            refreshWaiters.append(continuation)
+            refresh()
+        }
+    }
+
+    private func publishWidgetSnapshot() {
+        // Preserve the last snapshot on a cold launch while the new query runs.
+        var snapshot = WidgetCache.read()
+        if let quota {
+            snapshot.primaryRemaining = quota.primary?.remaining
+            snapshot.secondaryRemaining = quota.secondary?.remaining
+            snapshot.primaryMinutes = quota.primary?.windowDurationMins
+            snapshot.secondaryMinutes = quota.secondary?.windowDurationMins
+            snapshot.primaryReset = quota.primary?.resetsAt
+            snapshot.secondaryReset = quota.secondary?.resetsAt
+        }
+        snapshot.updatedAt = updated ?? snapshot.updatedAt
+        snapshot.failed = error != nil
+        snapshot.refreshStartedAt = refreshStartedAt
+        snapshot.refreshFinishedAt = refreshFinishedAt
+        if WidgetCache.write(snapshot) {
+            WidgetCenter.shared.reloadTimelines(ofKind: "CodexQuotaDesktopWidget")
+        }
+    }
     func refresh() {
         guard !loading else { return }
-        loading = true; changed?()
+        loading = true
+        refreshStartedAt = .now
+        publishWidgetSnapshot()
+        changed?()
         client.fetch { [weak self] result in
             guard let self else { return }
             self.loading = false
@@ -19,6 +54,11 @@ final class QuotaStore: ObservableObject {
             case .success(let quota): self.quota = quota; self.updated = Date(); self.error = nil
             case .failure(let error): self.error = error.localizedDescription
             }
+            self.refreshFinishedAt = .now
+            self.publishWidgetSnapshot()
+            let waiters = self.refreshWaiters
+            self.refreshWaiters.removeAll()
+            waiters.forEach { $0.resume() }
             self.changed?()
         }
     }
@@ -66,6 +106,7 @@ private struct PanelHeightKey: PreferenceKey {
 struct QuotaPanel: View {
     @ObservedObject var store: QuotaStore
     let chooseBinary: () -> Void
+    let hideMenuBar: () -> Void
     let contentHeightChanged: (CGFloat) -> Void
     var body: some View {
         ScrollView(.vertical) {
@@ -103,6 +144,7 @@ struct QuotaPanel: View {
                     }
                     Button(L10n.text("选择 Codex 可执行文件…", "Choose Codex executable…"), action: chooseBinary)
                     Divider()
+                    Button(L10n.text("隐藏菜单栏图标（保持后台运行）", "Hide menu bar icon (keep running)"), action: hideMenuBar)
                     Button(L10n.text("退出", "Quit")) { NSApp.terminate(nil) }
                 } label: { Image(systemName: "gearshape") }.menuStyle(.borderlessButton).frame(width: 24)
             }.controlSize(.small)
@@ -123,14 +165,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var timer: Timer?
     var wakeObserver: NSObjectProtocol?
     func applicationDidFinishLaunching(_ notification: Notification) {
+        WidgetRefreshAction.handler = { [weak store] in
+            await store?.refreshAndWait()
+        }
         NSApp.setActivationPolicy(.accessory)
         item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        item.isVisible = !UserDefaults.standard.bool(forKey: "hideMenuBarIcon")
         item.button?.font = .monospacedDigitSystemFont(ofSize: 12, weight: .medium)
         item.button?.target = self; item.button?.action = #selector(toggle)
         popover.behavior = .transient
         let host = NSHostingController(rootView: QuotaPanel(
             store: store,
             chooseBinary: { [weak self] in self?.chooseBinary() },
+            hideMenuBar: { [weak self] in self?.setMenuBarVisible(false) },
             contentHeightChanged: { [weak self] height in
                 guard height.isFinite, height > 0 else { return }
                 DispatchQueue.main.async {
@@ -150,6 +197,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let timer = Timer(timeInterval: 60, repeats: true) { [weak self] _ in self?.store.refresh() }
         RunLoop.main.add(timer, forMode: .common); self.timer = timer
         wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in self?.store.refresh() }
+    }
+    func setMenuBarVisible(_ visible: Bool) {
+        if !visible { popover.performClose(nil) }
+        UserDefaults.standard.set(!visible, forKey: "hideMenuBarIcon")
+        item.isVisible = visible
+        // The process, quota timer and WidgetKit cache continue running.
+    }
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        setMenuBarVisible(true)
+        return false
     }
     func updateTitle() {
         item.button?.title = store.title
@@ -182,6 +239,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             alert.messageText = L10n.text("请选择可执行文件", "Select an executable file")
             alert.informativeText = L10n.text("请选择名为 codex 的程序文件，而不是 .app 应用或文件夹。", "Choose the codex program file, not an .app bundle or folder.")
             alert.runModal()
+        }
+    }
+    func application(_ application: NSApplication, open urls: [URL]) {
+        if urls.contains(where: { $0.scheme == "codexquota" && $0.host == "refresh" }) {
+            store.refresh()
         }
     }
     func applicationWillTerminate(_ notification: Notification) {

@@ -5,7 +5,7 @@ APP="$ROOT/dist/Codex Quota.app"
 mkdir -p "$APP/Contents/MacOS" "$ROOT/work/swift-cache"
 ARCH="${ARCH:-$(uname -m)}"
 compile() {
-  swiftc -swift-version 5 -O -target "$1-apple-macosx14.0" -module-cache-path "$ROOT/work/swift-cache" -framework AppKit -framework SwiftUI "$ROOT/Sources/Localization.swift" "$ROOT/Sources/Quota.swift" "$ROOT/Sources/main.swift" -o "$2"
+  swiftc -swift-version 5 -O -target "$1-apple-macosx14.0" -module-cache-path "$ROOT/work/swift-cache" -framework AppKit -framework SwiftUI "$ROOT/Sources/Localization.swift" "$ROOT/Sources/Quota.swift" "$ROOT/Shared/WidgetSnapshot.swift" "$ROOT/Sources/main.swift" -o "$2"
 }
 case "$ARCH" in
   universal)

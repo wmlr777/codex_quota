@@ -16,6 +16,11 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build universal application
         run: ./scripts/package.sh
+      - name: Build native WidgetKit extension (unsigned)
+        run: >-
+          xcodebuild -project CodexQuota.xcodeproj -scheme CodexQuota
+          -configuration Release -derivedDataPath work/ci-widget-build
+          CODE_SIGNING_ALLOWED=NO build
       - name: Test parsing and transport
         run: ./scripts/test.sh
       - name: Upload application
