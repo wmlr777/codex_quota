@@ -70,7 +70,7 @@ The menu bar app writes only quota percentages, window durations, reset times, u
 
 Unsigned builds can verify compilation but do not verify installation, App Group access, or appearance in the widget gallery. A valid signing setup is required for end-to-end testing and distribution.
 
-To keep only the desktop widget, choose **Gear → Hide menu bar icon (keep running)**. Quota polling and widget sync continue in the background, and the hidden state is remembered across launches. Open Codex Quota again while it is running to restore its menu bar icon. **Quit** stops background updates; hiding the icon does not.
+To keep only the desktop widget, choose **Gear → Hide menu bar icon (keep running)**. Quota polling and widget sync continue in the background, and the hidden state is remembered across launches. Open Codex Quota again while it is running to recreate its menu bar icon and open the quota panel. **Quit** stops background updates; hiding the icon does not.
 
 ## Which account does it use?
 
@@ -120,6 +120,12 @@ If a read fails:
 - Check the network connection, then use **Refresh**.
 - Select the correct executable through the gear menu if Codex is installed somewhere else.
 - Reads time out after 30 seconds; the app will try again at the next refresh.
+
+## Menu bar icon recovery
+
+If the app is running but its menu bar indicator is missing, open **Codex Quota** again from Finder or Spotlight. The app rebuilds the status item and opens its quota panel.
+
+If it still does not appear, quit the app and try keeping a single installed copy in your user Applications folder (`~/Applications/Codex Quota.app`), then launch that copy. This resolved a case where the same signed app received a zero-height menu bar item in `/Applications`. After moving the WidgetKit build, confirm that **Codex Quota** is available in Edit Widgets. Avoid keeping multiple installed or build copies in application search results.
 
 ## Optional Codex companion plugin
 

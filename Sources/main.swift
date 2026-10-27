@@ -1,6 +1,7 @@
 import AppKit
 import SwiftUI
 import WidgetKit
+import OSLog
 
 final class QuotaStore: ObservableObject {
     @Published var quota: QuotaBucket?
@@ -169,10 +170,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             await store?.refreshAndWait()
         }
         NSApp.setActivationPolicy(.accessory)
-        item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        item.isVisible = !UserDefaults.standard.bool(forKey: "hideMenuBarIcon")
-        item.button?.font = .monospacedDigitSystemFont(ofSize: 12, weight: .medium)
-        item.button?.target = self; item.button?.action = #selector(toggle)
+        createStatusItem(visible: !UserDefaults.standard.bool(forKey: "hideMenuBarIcon"))
         popover.behavior = .transient
         let host = NSHostingController(rootView: QuotaPanel(
             store: store,
@@ -198,6 +196,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         RunLoop.main.add(timer, forMode: .common); self.timer = timer
         wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in self?.store.refresh() }
     }
+    private let menuLog = Logger(subsystem: "local.codex.quota", category: "MenuBar")
+    private func createStatusItem(visible: Bool) {
+        if let existing = item { NSStatusBar.system.removeStatusItem(existing) }
+        let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        item = statusItem
+        statusItem.isVisible = visible
+        statusItem.button?.font = .monospacedDigitSystemFont(ofSize: 12, weight: .medium)
+        statusItem.button?.target = self
+        statusItem.button?.action = #selector(toggle)
+        updateTitle()
+        menuLog.info("Created menu bar item; requested visibility: \(visible)")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self, weak statusItem] in
+            guard let self, let statusItem, let button = statusItem.button else { return }
+            let window = button.window
+            let frame = window.map { NSStringFromRect($0.frame) } ?? "none"
+            let screen = window?.screen.map { NSStringFromRect($0.frame) } ?? "none"
+            self.menuLog.info("Status item diagnostic: itemVisible=\(statusItem.isVisible), windowVisible=\(window?.isVisible ?? false), frame=\(frame, privacy: .public), screen=\(screen, privacy: .public)")
+        }
+    }
     func setMenuBarVisible(_ visible: Bool) {
         if !visible { popover.performClose(nil) }
         UserDefaults.standard.set(!visible, forKey: "hideMenuBarIcon")
@@ -205,7 +222,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // The process, quota timer and WidgetKit cache continue running.
     }
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        setMenuBarVisible(true)
+        // Recreate the status item instead of relying on an existing item that
+        // macOS may no longer display after it was hidden or reorganized.
+        popover.performClose(nil)
+        UserDefaults.standard.set(false, forKey: "hideMenuBarIcon")
+        createStatusItem(visible: true)
+        menuLog.info("Application reopened; menu bar item recreated")
+        DispatchQueue.main.async { [weak self] in
+            guard let self, !self.popover.isShown else { return }
+            self.toggle()
+        }
         return false
     }
     func updateTitle() {
